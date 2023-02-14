@@ -94,17 +94,59 @@ struct ColorCyclingCirle: View {
     }
 }
 
-//struct Trapezoid: Shape {
-//    var insetAmount: Double
-//    
-//    func path(in rect: CGRect) -> Path {
-//        var path = Path()
-//        path.move(to: CGPoint(x: 0, y: rect.maxY))
-//        path.addLine(to: CGPoint(x: insetAmount, y: rect.minY))
-//        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-//    }
-//}
+struct Trapezoid: Shape {
+    var insetAmount: Double
+    
+    var animatableData: Double {
+        get { insetAmount }
+        set { insetAmount = newValue }
+    }
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: rect.maxY))
+        path.addLine(to: CGPoint(x: insetAmount, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - insetAmount, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: 0, y: rect.maxY))
+        
+        return path
+    }
+}
 
+struct checkerbox: Shape {
+    var rows: Int
+    var columns: Int
+    
+    var animatableData: AnimatablePair<Double, Double> {
+        get {
+            AnimatablePair(Double(rows), Double(columns))
+        }
+        
+        set {
+            rows = Int(newValue.first)
+            columns = Int(newValue.second)
+        }
+    }
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        
+        let rowSize = rect.height / Double(rows)
+        let columnSize = rect.width / Double(columns)
+        
+        for row in 0..<rows {
+            for column in 0..<columns {
+                if (row + column).isMultiple(of: 2) {
+                    let startX = columnSize * Double(column)
+                    let startY = rowSize * Double(row)
+                    
+                    let rect = CGRect(x: startX, y: startY, width: columnSize, height: rowSize)
+                    path.addRect(rect)
+                }
+            }
+        }
+        return path
+    }
+}
 struct ContentView: View {
     
     @State private var petalOffset = -20.0
@@ -112,57 +154,83 @@ struct ContentView: View {
     @State private var colorCycle = 0.0
     
     @State private var amount = 0.0
+    @State private var insetAmount = 50.0
+    
+    @State private var rows = 4
+    @State private var columns = 4
     
     var body: some View {
-        VStack{
-            ZStack{
-                Circle()
-                    .fill(Color(red: 1, green: 0, blue: 0))
-                    .frame(width: 200 * amount)
-                    .offset(x: -50, y: -80)
-                    .blendMode(.screen)
-                
-                Circle()
-                    .fill(Color(red: 0, green: 1, blue: 0))
-                    .frame(width: 200 * amount)
-                    .offset(x: 50, y: -80)
-                    .blendMode(.screen)
-                
-                Circle()
-                    .fill(Color(red: 0, green: 0, blue: 1))
-                    .frame(width: 200 * amount)
-                    .blendMode(.screen)
+        List {
+            VStack {
+                checkerbox(rows: rows, columns: columns)
+                    .onTapGesture {
+                        withAnimation(.linear(duration: 3)) {
+                            rows = Int.random(in: 3...8)
+                            columns = Int.random(in: 3...8)
+                        }
+                    }
             }
             .frame(width: 300, height: 300)
+            VStack{
+            Trapezoid(insetAmount: insetAmount)
+                    .frame(width: 300, height: 300)
+                    .onTapGesture {
+                        withAnimation{
+                            insetAmount = Double.random(in: 10...90)
+                        }
+                    }
+            }
+            VStack{
+                ZStack{
+                    Circle()
+                        .fill(Color(red: 1, green: 0, blue: 0))
+                        .frame(width: 200 * amount)
+                        .offset(x: -50, y: -80)
+                        .blendMode(.screen)
+                    
+                    Circle()
+                        .fill(Color(red: 0, green: 1, blue: 0))
+                        .frame(width: 200 * amount)
+                        .offset(x: 50, y: -80)
+                        .blendMode(.screen)
+                    
+                    Circle()
+                        .fill(Color(red: 0, green: 0, blue: 1))
+                        .frame(width: 200 * amount)
+                        .blendMode(.screen)
+                }
+                .frame(width: 300, height: 300)
+                
+                Slider(value: $amount)
+                    .padding()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.black)
+            .ignoresSafeArea()
             
-            Slider(value: $amount)
-                .padding()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.black)
-        .ignoresSafeArea()
-        
-        VStack{
-            ColorCyclingCirle(amount: colorCycle)
-                .frame(width: 300, height: 300)
-
-            Slider(value: $colorCycle)
-        }
-
-
-        VStack{
-            Spacer()
-            Flower(petalOffset: petalOffset, petalWidth: petalWidth)
-                .fill(.blue, style: FillStyle(eoFill: true))
-                .frame(width: 300, height: 300)
-            Spacer()
-            Text("Offset \(petalOffset.formatted())")
-            Slider(value: $petalOffset, in: -40...40)
-                .padding([.horizontal,.bottom])
-
-            Text("Width")
-            Slider(value: $petalWidth, in: 0...100)
-                .padding([.horizontal])
+            
+            VStack{
+                ColorCyclingCirle(amount: colorCycle)
+                    .frame(width: 300, height: 300)
+                
+                Slider(value: $colorCycle)
+            }
+            
+            
+            VStack{
+                Spacer()
+                Flower(petalOffset: petalOffset, petalWidth: petalWidth)
+                    .fill(.blue, style: FillStyle(eoFill: true))
+                    .frame(width: 300, height: 300)
+                Spacer()
+                Text("Offset \(petalOffset.formatted())")
+                Slider(value: $petalOffset, in: -40...40)
+                    .padding([.horizontal,.bottom])
+                
+                Text("Width")
+                Slider(value: $petalWidth, in: 0...100)
+                    .padding([.horizontal])
+            }
         }
     }
 }
